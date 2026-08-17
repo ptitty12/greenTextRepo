@@ -20,6 +20,15 @@ To serve it instead (any static host works):
 python3 -m http.server 8000   # then open http://localhost:8000
 ```
 
+### Docker
+
+```sh
+docker build -t greentext .
+docker run --rm -p 8080:80 greentext   # then open http://localhost:8080
+```
+
+nginx serving one static file — the image carries `index.html` and nothing else.
+
 ### GitHub Pages
 
 `.github/workflows/pages.yml` publishes the repo root on every push to `main`.
