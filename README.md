@@ -31,9 +31,8 @@ nginx serving one static file — the image carries `index.html` and nothing els
 
 ### GitHub Pages
 
-`.github/workflows/pages.yml` publishes the repo root on every push to `main`.
-It only runs once Pages is switched on: **Settings → Pages → Build and
-deployment → Source: GitHub Actions**. After that the tool lives at
+`.github/workflows/pages.yml` publishes the repo root on every push to `main`,
+and switches Pages on itself the first time it runs. The tool lives at
 `https://ptitty12.github.io/greenTextRepo/`.
 
 ## What it does
