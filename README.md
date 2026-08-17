@@ -29,11 +29,8 @@ docker run --rm -p 8080:80 greentext   # then open http://localhost:8080
 
 nginx serving one static file — the image carries `index.html` and nothing else.
 
-### GitHub Pages
-
-`.github/workflows/pages.yml` publishes the repo root on every push to `main`,
-and switches Pages on itself the first time it runs. The tool lives at
-`https://ptitty12.github.io/greenTextRepo/`.
+Deploys run through Dokploy off this Dockerfile: point an application at the
+repo, build type Dockerfile, container port 80.
 
 ## What it does
 
