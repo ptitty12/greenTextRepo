@@ -1,0 +1,682 @@
+<title>Greentext Overlay</title>
+<style>
+  /* Deliberately single-theme: this is the Yotsuba B board palette, the native
+     habitat of greentext. Every color is painted explicitly so the page holds
+     on a light or dark host ground. */
+  :root {
+    --board: #eef2ff;   /* page ground        */
+    --post:  #d6daf0;   /* post box           */
+    --rule:  #b7c5d9;   /* the thin blue rules */
+    --edge:  #9aa8c4;   /* input borders      */
+    --ink:   #0f0f14;   /* body text          */
+    --dim:   #5b6480;   /* meta text          */
+    --title: #af0a0f;   /* board title        */
+    --link:  #34345c;   /* links, post meta   */
+    --name:  #117743;   /* the Anonymous green */
+    --gt:    #5f7a13;   /* greentext, darkened for small UI type */
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--board);
+    color: var(--ink);
+    font: 13.5px/1.45 Arial, Helvetica, "Liberation Sans", sans-serif;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 16px 70px; }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 14px 0; }
+
+  header { text-align: center; }
+  header h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--title);
+    letter-spacing: -0.5px;
+  }
+  header h1 .gt { color: var(--gt); }
+  header p {
+    margin: 6px auto 0;
+    max-width: 64ch;
+    color: var(--dim);
+    font-size: 13px;
+  }
+
+  /* ---------- drop zone: the board's post form, blown up ---------- */
+  #drop {
+    border: 1px dashed var(--edge);
+    background: var(--post);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+  }
+  #drop:hover, #drop.hot { border-color: var(--title); border-style: solid; }
+  #drop strong { display: block; font-size: 16px; margin-bottom: 3px; }
+  #drop span { color: var(--dim); font-size: 12px; }
+  #drop.small { padding: 9px 12px; text-align: left; }
+  #drop.small strong { display: inline; font-size: 13px; margin: 0; font-weight: 400; color: var(--link); }
+  #drop.small span { display: none; }
+  #file { display: none; }
+
+  /* ---------- controls ---------- */
+  #controls { display: none; }
+  #controls.on { display: block; }
+
+  .panel { background: var(--post); border: 1px solid var(--rule); padding: 14px 16px; margin-bottom: 14px; }
+  .row { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label.cap { font-size: 11px; font-weight: 700; color: var(--dim); }
+
+  select, button, textarea {
+    font: inherit;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid var(--edge);
+    border-radius: 0;
+    padding: 5px 7px;
+  }
+  select { min-width: 165px; }
+  textarea { width: 100%; resize: vertical; min-height: 62px; }
+  button { cursor: pointer; background: #f6f7fd; padding: 5px 12px; }
+  button:hover { border-color: var(--title); }
+  button.primary { background: var(--name); border-color: #0b5730; color: #fff; font-weight: 700; }
+  button.primary:hover { background: #0d5f36; border-color: #0b5730; }
+  :focus-visible { outline: 2px solid var(--title); outline-offset: 1px; }
+  input[type=range] { width: 160px; accent-color: var(--name); }
+
+  .swatches { display: flex; align-items: center; gap: 4px; }
+  input[type=color] {
+    width: 42px; height: 27px; padding: 1px;
+    border: 1px solid var(--edge); background: #fff; cursor: pointer;
+  }
+  button.sw { width: 20px; height: 20px; padding: 0; border: 1px solid var(--edge); }
+  button.sw:hover { border-color: var(--title); }
+  label.check { display: flex; align-items: center; gap: 5px; padding: 5px 0; cursor: pointer; }
+  label.check input { accent-color: var(--name); margin: 0; }
+
+  .lines { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2px 16px; }
+  .lines label {
+    display: flex; gap: 7px; align-items: flex-start;
+    padding: 3px 2px;
+    cursor: pointer;
+    color: var(--gt);
+  }
+  .lines label:hover { text-decoration: underline; }
+  .lines input { accent-color: var(--name); margin: 3px 0 0; }
+  h2 { font-size: 12px; color: var(--dim); margin: 0 0 8px; font-weight: 700; }
+
+  /* ---------- output: every result is a post ---------- */
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 14px; align-items: start; }
+  .card { background: var(--post); border: 1px solid var(--rule); padding: 6px; }
+  .card .bar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    padding: 1px 2px 5px;
+  }
+  .card .name {
+    color: var(--gt);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .card .bar button {
+    flex: none; padding: 0; border: 0; background: none;
+    color: var(--link); font-size: 12.5px;
+  }
+  .card .bar button:hover { color: var(--title); text-decoration: underline; }
+  .card canvas { display: block; width: 100%; height: auto; background: #fff; }
+  .hint { color: var(--dim); font-size: 12px; margin: 12px 0 0; }
+  footer { color: var(--dim); font-size: 12px; margin-top: 30px; text-align: center; }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1><span class="gt">&gt;</span>greentext overlay</h1>
+    <p>Drop in a photo and it renders one image per greentext line. Everything happens in your browser &mdash; no upload, no server, the picture never leaves the machine.</p>
+  </header>
+  <hr>
+
+  <div id="drop">
+    <strong>Drop a photo here</strong>
+    <span>or click to pick one, or paste with Ctrl+V &middot; jpg, png, webp</span>
+  </div>
+  <input type="file" id="file" accept="image/*">
+  <hr>
+
+  <div id="controls">
+    <div class="panel">
+      <h2>Lines</h2>
+      <div class="lines" id="lines"></div>
+      <div class="field" style="margin-top:12px">
+        <label class="cap" for="custom">Your own (one per line, blank line starts a new image)</label>
+        <textarea id="custom" placeholder="you'll make it anon&#10;&#10;tfw no gf"></textarea>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <div class="field">
+          <label class="cap" for="style">Style</label>
+          <select id="style">
+            <option value="outline">Classic greentext</option>
+            <option value="band">Greentext on band</option>
+            <option value="post">Post box</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="cap" for="pos">Position</label>
+          <select id="pos">
+            <option value="top">Top</option>
+            <option value="middle">Middle</option>
+            <option value="bottom" selected>Bottom</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="cap" for="font">Font</label>
+          <select id="font">
+            <option value="arial">Arial bold</option>
+            <option value="impact">Impact</option>
+            <option value="courier">Courier</option>
+            <option value="times">Times</option>
+            <option value="comic">Comic Sans</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="cap" for="color">Color</label>
+          <span class="swatches">
+            <input type="color" id="color" value="#789922">
+            <button type="button" class="sw" data-color="#789922" style="background:#789922" title="Greentext"></button>
+            <button type="button" class="sw" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+            <button type="button" class="sw" data-color="#ffd400" style="background:#ffd400" title="Yellow"></button>
+            <button type="button" class="sw" data-color="#e02020" style="background:#e02020" title="Red"></button>
+            <button type="button" class="sw" data-color="#000000" style="background:#000000" title="Black"></button>
+          </span>
+        </div>
+        <div class="field">
+          <label class="cap" for="align">Align</label>
+          <select id="align">
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="cap" for="size">Text size <span id="sizeOut">100%</span></label>
+          <input type="range" id="size" min="55" max="200" value="100">
+        </div>
+        <div class="field">
+          <label class="cap">&nbsp;</label>
+          <label class="check"><input type="checkbox" id="prefix" checked> Keep the &gt;</label>
+        </div>
+        <div class="field">
+          <button class="primary" id="render">Render</button>
+        </div>
+        <div class="field">
+          <button id="saveAll">Save all</button>
+        </div>
+        <div class="field">
+          <button id="reset">New photo</button>
+        </div>
+      </div>
+      <p class="hint">If a save button does nothing, you're in a viewer that blocks downloads &mdash; right-click or long-press the image and pick <em>Save image</em>.</p>
+    </div>
+
+    <div id="grid"></div>
+  </div>
+
+  <footer>Nothing is uploaded anywhere. It all runs on your own machine.</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var PRESETS = [
+    'if only you knew how bad things really are',
+    'some things are worth fighting for, anon',
+    'never give up, anon',
+    "it's not too late, anon",
+    'you were the chosen one',
+    'we’re all gonna make it, anon',
+    'tfw no gf',
+    'be me'
+  ];
+
+  var MAX_EDGE = 1600;        // longest side of the rendered output
+
+  // weight + stack per font choice; the second entry is the post box's lighter cut
+  var FACES = {
+    arial:   ['700', '400', 'Arial, Helvetica, "Liberation Sans", sans-serif'],
+    impact:  ['400', '400', 'Impact, "Haettenschweiler", "Arial Narrow Bold", sans-serif'],
+    courier: ['700', '400', '"Courier New", Courier, monospace'],
+    times:   ['700', '400', '"Times New Roman", Times, serif'],
+    comic:   ['700', '400', '"Comic Sans MS", "Comic Neue", cursive, sans-serif']
+  };
+
+  var els = {
+    drop: document.getElementById('drop'),
+    file: document.getElementById('file'),
+    controls: document.getElementById('controls'),
+    lines: document.getElementById('lines'),
+    custom: document.getElementById('custom'),
+    style: document.getElementById('style'),
+    pos: document.getElementById('pos'),
+    size: document.getElementById('size'),
+    sizeOut: document.getElementById('sizeOut'),
+    font: document.getElementById('font'),
+    color: document.getElementById('color'),
+    align: document.getElementById('align'),
+    prefix: document.getElementById('prefix'),
+    render: document.getElementById('render'),
+    saveAll: document.getElementById('saveAll'),
+    reset: document.getElementById('reset'),
+    grid: document.getElementById('grid')
+  };
+
+  var source = null;          // the loaded photo, already scaled to MAX_EDGE
+  var baseName = 'greentext';
+
+  /* ------------------------------------------------------------------ input */
+
+  PRESETS.forEach(function (text, i) {
+    var id = 'p' + i;
+    var label = document.createElement('label');
+    label.setAttribute('for', id);
+    label.innerHTML = '<input type="checkbox" id="' + id + '" checked>';
+    label.appendChild(document.createTextNode('>' + text));
+    els.lines.appendChild(label);
+  });
+
+  els.drop.addEventListener('click', function () { els.file.click(); });
+  els.file.addEventListener('change', function () {
+    if (els.file.files && els.file.files[0]) load(els.file.files[0]);
+  });
+
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    els.drop.addEventListener(ev, function (e) { e.preventDefault(); els.drop.classList.add('hot'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    els.drop.addEventListener(ev, function (e) { e.preventDefault(); els.drop.classList.remove('hot'); });
+  });
+  els.drop.addEventListener('drop', function (e) {
+    var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) load(f);
+  });
+  window.addEventListener('paste', function (e) {
+    var items = e.clipboardData && e.clipboardData.files;
+    if (items && items[0] && /^image\//.test(items[0].type)) load(items[0]);
+  });
+
+  els.size.addEventListener('input', function () { els.sizeOut.textContent = els.size.value + '%'; });
+  els.render.addEventListener('click', renderAll);
+  ['style', 'pos', 'size', 'font', 'color', 'align', 'prefix'].forEach(function (k) {
+    els[k].addEventListener('change', renderAll);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('button.sw'), function (b) {
+    b.addEventListener('click', function () {
+      els.color.value = b.getAttribute('data-color');
+      renderAll();
+    });
+  });
+  els.saveAll.addEventListener('click', saveAll);
+  els.reset.addEventListener('click', function () {
+    source = null;
+    els.grid.innerHTML = '';
+    els.controls.classList.remove('on');
+    els.drop.classList.remove('small');
+    els.drop.querySelector('strong').textContent = 'Drop a photo here';
+    els.file.value = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  function load(file) {
+    if (!/^image\//.test(file.type)) { alert('That is not an image.'); return; }
+    baseName = (file.name || 'greentext').replace(/\.[^.]+$/, '').replace(/[^\w-]+/g, '_').slice(0, 40) || 'greentext';
+    decode(file).then(function (bitmap) {
+      source = fit(bitmap, MAX_EDGE);
+      els.drop.classList.add('small');
+      els.drop.querySelector('strong').textContent = 'Swap photo — ' + (file.name || 'image') + ' loaded';
+      els.controls.classList.add('on');
+      renderAll();
+      els.controls.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }).catch(function () {
+      alert('Could not read that image.');
+    });
+  }
+
+  // createImageBitmap respects EXIF rotation; <img> is the fallback for older browsers.
+  function decode(file) {
+    if (window.createImageBitmap) {
+      return createImageBitmap(file, { imageOrientation: 'from-image' }).catch(viaImg);
+    }
+    return viaImg();
+
+    function viaImg() {
+      return new Promise(function (resolve, reject) {
+        var url = URL.createObjectURL(file);
+        var img = new Image();
+        img.onload = function () { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = function () { URL.revokeObjectURL(url); reject(); };
+        img.src = url;
+      });
+    }
+  }
+
+  function fit(bitmap, maxEdge) {
+    var w = bitmap.width || bitmap.naturalWidth;
+    var h = bitmap.height || bitmap.naturalHeight;
+    var k = Math.min(1, maxEdge / Math.max(w, h));
+    var c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(w * k));
+    c.height = Math.max(1, Math.round(h * k));
+    c.getContext('2d').drawImage(bitmap, 0, 0, c.width, c.height);
+    if (bitmap.close) bitmap.close();
+    return c;
+  }
+
+  /* ---------------------------------------------------------------- content */
+
+  // Each variant is an array of greentext lines rendered onto one image.
+  function variants() {
+    var out = [];
+    PRESETS.forEach(function (text, i) {
+      if (document.getElementById('p' + i).checked) out.push([text]);
+    });
+    els.custom.value.split(/\n\s*\n/).forEach(function (block) {
+      var lines = block.split('\n').map(function (s) { return s.replace(/^>\s*/, '').trim(); })
+                       .filter(function (s) { return s.length; });
+      if (lines.length) out.push(lines);
+    });
+    return out;
+  }
+
+  function renderAll() {
+    if (!source) return;
+    var list = variants();
+    els.grid.innerHTML = '';
+    if (!list.length) {
+      els.grid.innerHTML = '<p class="hint">Tick at least one line, or write your own.</p>';
+      return;
+    }
+    var opts = {
+      style: els.style.value,
+      pos: els.pos.value,
+      scale: parseInt(els.size.value, 10) / 100,
+      face: FACES[els.font.value] || FACES.arial,
+      color: els.color.value,
+      align: els.align.value,
+      prefix: els.prefix.checked
+    };
+    list.forEach(function (lines, i) { els.grid.appendChild(card(lines, opts, i)); });
+  }
+
+  function card(lines, opts, index) {
+    var canvas = document.createElement('canvas');
+    draw(canvas, lines, opts);
+
+    var el = document.createElement('div');
+    el.className = 'card';
+
+    var bar = document.createElement('div');
+    bar.className = 'bar';
+
+    var name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = (els.prefix.checked ? '>' : '') + lines[0] + (lines.length > 1 ? ' …' : '');
+
+    var btn = document.createElement('button');
+    btn.textContent = '[Save]';
+    btn.addEventListener('click', function () { save(canvas, slug(lines, index)); });
+
+    bar.appendChild(name);
+    bar.appendChild(btn);
+    el.appendChild(bar);
+    el.appendChild(canvas);
+    return el;
+  }
+
+  function slug(lines, index) {
+    var s = lines.join('-').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48);
+    return baseName + '-' + (s || ('greentext-' + (index + 1))) + '.png';
+  }
+
+  /* ---------------------------------------------------------------- drawing */
+
+  function draw(canvas, lines, opts) {
+    canvas.width = source.width;
+    canvas.height = source.height;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(source, 0, 0);
+
+    var unit = Math.min(canvas.width, canvas.height * 1.4);
+    var size = Math.max(13, unit / 20 * opts.scale);
+    var margin = Math.round(canvas.width * 0.045);
+
+    if (opts.style === 'post') drawPost(ctx, canvas, lines, size, margin, opts);
+    else drawOverlay(ctx, canvas, lines, size, margin, opts);
+  }
+
+  // Greentext reads best one thought per row, so shrink (within reason) before wrapping.
+  function fitSize(ctx, lines, maxWidth, size, font, prefix) {
+    var floor = Math.max(12, size * 0.6);
+    while (size > floor) {
+      ctx.font = font(size);
+      if (wrap(ctx, lines, maxWidth, prefix).length === lines.length) break;
+      size -= Math.max(1, size * 0.04);
+    }
+    ctx.font = font(size);
+    return size;
+  }
+
+  // Wraps each greentext line, keeping the ">" only on the first visual row.
+  function wrap(ctx, lines, maxWidth, prefix) {
+    var out = [];
+    lines.forEach(function (line) {
+      var words = ((prefix === false ? '' : '>') + line).split(/\s+/);
+      var cur = words.shift();
+      words.forEach(function (w) {
+        if (ctx.measureText(cur + ' ' + w).width <= maxWidth) cur += ' ' + w;
+        else { out.push(cur); cur = w; }
+      });
+      out.push(cur);
+    });
+    return out;
+  }
+
+  function blockTop(pos, canvasH, blockH, margin) {
+    if (pos === 'top') return margin;
+    if (pos === 'middle') return Math.max(margin, (canvasH - blockH) / 2);
+    return Math.max(margin, canvasH - blockH - margin);
+  }
+
+  function drawOverlay(ctx, canvas, lines, size, margin, opts) {
+    var band = opts.style === 'band';
+    var face = opts.face;
+    var font = function (s) { return face[0] + ' ' + s + 'px ' + face[2]; };
+    var centered = opts.align === 'center';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = centered ? 'center' : 'left';
+
+    var maxWidth = canvas.width - margin * 2;
+    size = fitSize(ctx, lines, maxWidth, size, font, opts.prefix);
+    var rows = wrap(ctx, lines, maxWidth, opts.prefix);
+    var lh = Math.round(size * 1.22);
+    var blockH = rows.length * lh;
+    var top = blockTop(opts.pos, canvas.height, blockH, margin);
+    var x = centered ? Math.round(canvas.width / 2) : margin;
+
+    if (band) {
+      var pad = Math.round(size * 0.5);
+      var widest = 0;
+      rows.forEach(function (r) { widest = Math.max(widest, ctx.measureText(r).width); });
+      var bw = Math.min(maxWidth, widest) + pad * 2;
+      ctx.fillStyle = 'rgba(0,0,0,0.58)';
+      roundRect(ctx, centered ? (canvas.width - bw) / 2 : margin - pad, top - pad, bw, blockH + pad * 2, pad * 0.7);
+      ctx.fill();
+    }
+
+    ctx.lineJoin = 'round';
+    ctx.miterLimit = 2;
+    ctx.lineWidth = Math.max(2, size / 6);
+    ctx.strokeStyle = outlineFor(opts.color);
+    ctx.fillStyle = opts.color;
+
+    rows.forEach(function (row, i) {
+      var y = top + i * lh;
+      if (!band) ctx.strokeText(row, x, y);
+      ctx.fillText(row, x, y);
+    });
+  }
+
+  // Black outline under everything except near-black text, which needs a white one.
+  function outlineFor(hex) {
+    var m = /^#([0-9a-f]{6})$/i.exec(hex);
+    if (!m) return 'rgba(0,0,0,0.9)';
+    var n = parseInt(m[1], 16);
+    var lum = 0.2126 * (n >> 16 & 255) + 0.7152 * (n >> 8 & 255) + 0.0722 * (n & 255);
+    return lum < 60 ? 'rgba(255,255,255,0.92)' : 'rgba(0,0,0,0.9)';
+  }
+
+  function drawPost(ctx, canvas, lines, size, margin, opts) {
+    var cardW = Math.min(canvas.width - margin * 2, canvas.width * 0.82);
+    var face = opts.face;
+    var font = function (s) { return face[1] + ' ' + s + 'px ' + face[2]; };
+    var pad = Math.round(size * 0.7);
+
+    ctx.textAlign = 'left';
+    size = fitSize(ctx, lines, cardW - pad * 2, size, font, opts.prefix);
+    pad = Math.round(size * 0.7);
+    var lh = Math.round(size * 1.25);
+    var rows = wrap(ctx, lines, cardW - pad * 2, opts.prefix);
+    var headH = Math.round(size * 1.5);
+    var cardH = pad * 2 + headH + rows.length * lh;
+    var x = Math.round((canvas.width - cardW) / 2);
+    var y = Math.round(blockTop(opts.pos, canvas.height, cardH, margin));
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = size * 0.8;
+    ctx.shadowOffsetY = size * 0.15;
+    ctx.fillStyle = '#f0e0d6';
+    roundRect(ctx, x, y, cardW, cardH, Math.round(size * 0.25));
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = '#d9bfb7';
+    ctx.lineWidth = Math.max(1, size / 22);
+    roundRect(ctx, x, y, cardW, cardH, Math.round(size * 0.25));
+    ctx.stroke();
+
+    // header: Anonymous <date> No.<id> — shrink, then drop the id, rather than spill past the card
+    var who = 'Anonymous';
+    var meta = '  ' + stamp() + '  No.' + postNo();
+    var avail = cardW - pad * 2;
+    var hs = size * 0.72;
+    ctx.textBaseline = 'top';
+    for (var pass = 0; pass < 2; pass++) {
+      ctx.font = '700 ' + hs + 'px Arial, Helvetica, sans-serif';
+      var w = ctx.measureText(who).width;
+      ctx.font = hs + 'px Arial, Helvetica, sans-serif';
+      if (w + ctx.measureText(meta).width <= avail) break;
+      if (pass === 0) hs *= 0.8; else meta = meta.replace(/\s+No\.\d+$/, '');
+    }
+
+    ctx.font = '700 ' + hs + 'px Arial, Helvetica, sans-serif';
+    ctx.fillStyle = '#117743';
+    ctx.fillText(who, x + pad, y + pad);
+    var wWho = ctx.measureText(who).width;
+
+    ctx.font = hs + 'px Arial, Helvetica, sans-serif';
+    ctx.fillStyle = '#34345c';
+    ctx.fillText(meta, x + pad + wWho, y + pad);
+
+    ctx.font = font(size);
+    ctx.fillStyle = opts.color;
+    rows.forEach(function (row, i) {
+      ctx.fillText(row, x + pad, y + pad + headH + i * lh);
+    });
+  }
+
+  function stamp() {
+    var d = new Date();
+    var days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    function p(n) { return String(n).padStart(2, '0'); }
+    return p(d.getMonth() + 1) + '/' + p(d.getDate()) + '/' + p(d.getFullYear() % 100) +
+           '(' + days[d.getDay()] + ')' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  function postNo() {
+    return String(100000000 + Math.floor(Math.random() * 899999999));
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  /* ---------------------------------------------------------------- saving */
+
+  // Opened as a plain file, an <a download> is the whole story. Inside a viewer
+  // that blocks page-initiated downloads, the host hands us a save channel instead.
+  var host = null;
+  try {
+    if (window.claude && typeof window.claude.use === 'function') {
+      window.claude.use('downloads').then(function (ns) { host = ns; }, function () {});
+    }
+  } catch (e) { /* not in a host that offers one */ }
+
+  function save(canvas, filename) {
+    return new Promise(function (resolve) {
+      canvas.toBlob(function (blob) {
+        if (!blob) { resolve('error'); return; }
+        if (host) {
+          host.save({ filename: filename, data: blob })
+              .then(function () { resolve('saved'); },
+                    function (err) { resolve(report(err)); });
+          return;
+        }
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        resolve('saved');
+      }, 'image/png');
+    });
+  }
+
+  function report(err) {
+    var code = (err && err.code) || 'unavailable';
+    if (code === 'declined') return 'declined';
+    if (code === 'rate_limited') return 'busy';
+    if (code === 'too_large') alert('That image is too big to save. Turn the text size down or use a smaller photo.');
+    else alert('Saving is blocked here. Right-click or long-press the image and pick Save image.');
+    return 'error';
+  }
+
+  function saveAll() {
+    var cards = Array.prototype.slice.call(els.grid.querySelectorAll('.card canvas'));
+    var list = variants();
+
+    if (!host) {
+      // Browsers throttle back-to-back downloads, so space them out.
+      cards.forEach(function (canvas, i) {
+        setTimeout(function () { save(canvas, slug(list[i] || ['greentext'], i)); }, i * 350);
+      });
+      return;
+    }
+
+    // The host prompts once per file and allows one prompt at a time, so queue them.
+    (function next(i) {
+      if (i >= cards.length) return;
+      save(cards[i], slug(list[i] || ['greentext'], i)).then(function (outcome) {
+        if (outcome === 'saved') next(i + 1);   // a decline ends the run
+      });
+    })(0);
+  }
+})();
+</script>
